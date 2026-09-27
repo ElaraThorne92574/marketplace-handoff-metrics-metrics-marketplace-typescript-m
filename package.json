@@ -1,0 +1,20 @@
+{
+  "name": "marketplace-handoff-metrics",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/marketplace_service.ts",
+    "chart": "tsx src/usage_chart.ts",
+    "test": "tsx --test test/order_handoff.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
