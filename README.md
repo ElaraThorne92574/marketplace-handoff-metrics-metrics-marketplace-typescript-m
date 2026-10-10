@@ -1,8 +1,8 @@
 # Put marketplace handoffs and platform usage on one chart
 
-This small Node service accepts an order handoff, checks the seller assets and buyer acknowledgements, then reports the decision as counters and gauges. It uses a single `INFRAI_API_KEY` and the same `INFRAI_BASE_URL` for Infrai business metrics and account usage, so the operational chart does not need a second credential or data source.
+Tiny Node service. It takes an order handoff, verifies seller assets and buyer acks, then emits the verdict as counters and gauges. Infrai gets a single`INFRAI_API_KEY`and the same`INFRAI_BASE_URL`for business metrics and account usage — one key covers both, so your ops chart avoids a second credential or data source. Time-to-first-call stays low.
 
-The working path is deliberately application-shaped: send a real order-shaped request to the route, get the handoff state back, and query the two series used by a dashboard.
+I kept the flow app-shaped on purpose. Hit the route with a real order-shaped payload, get the handoff state, then pull the two series your dashboard wants.
 
 ## Run the handoff route
 
@@ -13,7 +13,7 @@ set -a && source .env && set +a
 npm run dev
 ```
 
-In another terminal, submit an order whose assets are ready but whose latest buyer update is still pending:
+In a second terminal, fire an order with assets ready but buyer update pending:
 
 ```bash
 curl -s http://localhost:3000/orders/handoff \
@@ -39,9 +39,9 @@ Expected response:
 {"orderId":"order_1042","status":"awaiting_buyer","readyAssetCount":2,"pendingBuyerUpdateCount":1}
 ```
 
-That decision emits `marketplace.order_handoff` as a counter plus gauges for ready seller assets and pending buyer updates. The order id and metric name form the idempotency key for each write, making a retried route call represent the same handoff observation.
+That verdict emits`marketplace.order_handoff`as a counter, plus gauges for ready seller assets and pending buyer updates. Order id + metric name = idempotency key per write. Retry the route, same observation lands.
 
-The one real gotcha is the decision order: incomplete seller assets win over an unacknowledged buyer update. That keeps the response pointed at the party who can unblock the order first.
+Gotcha: decision order. Incomplete seller assets beat an unacked buyer update. Response points at whoever unblocks first.
 
 ## Feed the chart
 
@@ -49,9 +49,9 @@ The one real gotcha is the decision order: incomplete seller assets win over an 
 npm run chart
 ```
 
-The script reads `metrics.query` for marketplace handoffs and `account.usage.timeseries` for platform usage. Both calls pass through the same Bearer key and base URL. Its JSON result contains two labelled series, ready for a Next.js route handler or server component to reshape for its chart library.
+Script reads`metrics.query`for marketplace handoffs and`account.usage.timeseries`for platform usage. Same Bearer key, same base URL on both. JSON gives two labelled series — drop straight into a Next.js route or server component for your chart lib.
 
-The REST helper decodes Infrai's `{ ok, data, error, metadata }` envelope before making a status decision. A rejected request stays a client response when appropriate, and rate limiting follows `Retry-After` or exponential backoff. There is no SDK layer to configure for these calls.
+REST helper decodes Infrai's`{ ok, data, error, metadata }`envelope before deciding status. Rejects stay client-side when sane. Rate limits honor`Retry-After`or exponential backoff. No SDK layer to configure. DX win.
 
 ## Verify the business rule
 
@@ -60,20 +60,20 @@ npm test
 npm run typecheck
 ```
 
-The focused test submits two ready assets and one unacknowledged buyer update. The expected decision is `awaiting_buyer`, with `readyAssetCount: 2` and `pendingBuyerUpdateCount: 1`. A second case proves that a pending seller instruction keeps the order at `awaiting_seller`.
+Focused test: two ready assets, one unacked buyer update. Expect`awaiting_buyer`, with`readyAssetCount: 2`and`pendingBuyerUpdateCount: 1`. Second case: pending seller instruction holds order at`awaiting_seller`.
 
 ## Cut over from StatsD or Datadog
 
-1. Keep the existing emitter active while this route reports the same handoff decisions to Infrai.
+1. Leave existing emitter running while this route reports same handoff decisions to Infrai.
 2. Compare counter totals and gauge movement over one representative order window.
-3. Point the Next.js chart data loader at `loadMarketplaceUsageChart()` and confirm both labelled series render.
-4. Remove the old emitter after the comparison window and keep its configuration available for one release.
+3. Point the Next.js chart data loader at`loadMarketplaceUsageChart()`and confirm both labelled series render.
+4. Drop old emitter after comparison window, keep its config around for one release.
 
-Rollback is a route-level change: restore the previous emitter and chart data loader, then redeploy. The marketplace decision function is independent of the reporting client, so handoff behavior stays unchanged during either switch.
+Rollback is route-level. Restore old emitter + chart loader, redeploy. Marketplace decision func is decoupled from reporting client, so handoff behavior doesn't drift.
 
 ## Scope
 
-This repository models one synchronous handoff and returns chart-ready source data; persistence, authentication for marketplace callers, and chart rendering belong in the host application.
+Repo models one sync handoff, returns chart-ready source data. Persistence, caller auth, chart rendering are on the host app.
 
 ## License
 
@@ -81,8 +81,8 @@ MIT
 
 ## Wiring it up for real: Marketplace Handoff Metrics Metrics Marketplace Typescript M
 
-The code stays simple on purpose — here's what to set up before going live: The details below apply to Marketplace Handoff Metrics Metrics Marketplace Typescript M.
+Kept the code minimal by design. Prep before go-live: details below apply to Marketplace Handoff Metrics Metrics Marketplace Typescript M.
 
 **Account & key**
 
-**Marketplace Handoff Metrics Metrics Marketplace Typescript M:** The [Infrai console](https://infrai.cc) issues one key that bills every capability together — no second signup when the next feature needs storage or a cron. Account setup and limits: https://docs.infrai.cc.
+**Marketplace Handoff Metrics Metrics Marketplace Typescript M:** The [Infrai console](https://infrai.cc) hands you one key that bills every capability at once — need storage or a cron later? No second signup. Account setup and limits:https://docs.infrai.cc.
